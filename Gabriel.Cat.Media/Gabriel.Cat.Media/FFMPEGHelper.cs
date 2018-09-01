@@ -16,16 +16,25 @@ namespace Gabriel.Cat.Media
             mp4,
             mov,
             flv,
-            wmv
-            //añadir todos los compatibles
+            wmv,
+            mkv,
+           // apng por mirar como va...
+            //añadir todos los compatibles...
         }
         public enum VideoCodec
         {
-            H264
+            H264,
+            /// <summary>
+            /// Aun está en desarrollo...
+            /// </summary>
+            H265,
+            AV1
         }
         public enum AudioCodec
         {
-            AAC
+            AAC,
+            MP3,
+            OGG
         }
         public enum AudioOption
         {
@@ -85,7 +94,7 @@ namespace Gabriel.Cat.Media
             public int? Width { get => width; set => width = value; }
             public TimeSpan? Duration { get => duration; set => duration = value; }
             public TranscodeSpeed? DoItSpeed { get => doitSpeed; set => doitSpeed = value; }
-            public Format? OutputFormat { get => outputFormat; set => outputFormat = value; }
+            public Format? OutputFormat { get => outputFormat; set { outputFormat = value; } }
 
             public string GetString(FileInfo file, string outputPath = null)
             {
@@ -94,26 +103,56 @@ namespace Gabriel.Cat.Media
             public string GetString(string filePath, string outputPath = null)
             {
                 StringBuilder str = new StringBuilder(PROGRAM);
+                if (OutputFormat.HasValue)
+                    switch (OutputFormat)
+                    {
+                        case Format.mkv:
+                            VideoCodec = FFMPEGHelper.VideoCodec.H264;
+                            AudioCodec = FFMPEGHelper.AudioCodec.OGG;
+                            break;
+                    }
                 if (InitialTime.HasValue)
                     SetParam(str, "-ss", InitialTime.ToString());
+
                 SetParam(str, TRANSCODE, "\"" + filePath + "\"");
+                SetParam(str, "-vcodec");
                 if (VideoCodec.HasValue)
                 {
+
                     switch (VideoCodec)
                     {
                         case FFMPEGHelper.VideoCodec.H264:
-                            SetParam(str, "-c:v", "libx264");
+                            SetParam(str, "libx264");
+                            break;
+                        case FFMPEGHelper.VideoCodec.H265:
+                            SetParam(str, "libx265");
+                            break;
+                        case FFMPEGHelper.VideoCodec.AV1:
+                            SetParam(str, "libaom-av1");
                             break;
                     }
                 }
+                else
+                {
+                    SetParam(str, "copy");//ya que no se cambia al menos que no haga la faena :)
+                }
+                SetParam(str, "-acodec");
                 if (AudioCodec.HasValue)
                 {
                     switch (AudioCodec)
                     {
                         case FFMPEGHelper.AudioCodec.AAC:
-                            SetParam(str, "-c:a", "libvo_aacenc");
+                        case FFMPEGHelper.AudioCodec.MP3:
+                            SetParam(str, AudioCodec.ToString().ToLower());
+                            break;
+                        case FFMPEGHelper.AudioCodec.OGG:
+                            SetParam(str, "libvorbis");
                             break;
                     }
+                }
+                else
+                {
+                    SetParam(str, "copy");//ya que no se cambia al menos que no haga la faena :)
                 }
                 if (AudioOption.HasValue)
                 {
@@ -138,6 +177,7 @@ namespace Gabriel.Cat.Media
 
                 if (OutputFormat.HasValue)
                 {
+
                     if (outputPath == null)
                         outputPath = Path.Combine(Environment.CurrentDirectory, Path.GetFileNameWithoutExtension(filePath), ".", OutputFormat.ToString());
                     else if (outputPath[outputPath.Length - 1] == '_' || !outputPath.Contains('.'))
@@ -252,7 +292,7 @@ namespace Gabriel.Cat.Media
         public static string GetStringTakeSnapShot(FileInfo file, TimeSpan time, string output = null, int frames = 1)
         {
             StringBuilder str = new StringBuilder(PROGRAM);
-            SetParam(str, "-ss", time.ToString(), TRANSCODE, "\"" + file.FullName + "\"",  "-vframes", frames + "", output == null ? "\"" + file.Name + "_" + DateTime.Now.Ticks + ".jpg" + "\"" : "\"" + output + "\"");
+            SetParam(str, "-ss", time.ToString(), TRANSCODE, "\"" + file.FullName + "\"", "-vframes", frames + "", output == null ? "\"" + file.Name + "_" + DateTime.Now.Ticks + ".jpg" + "\"" : "\"" + output + "\"");
             return str.ToString();
         }
         public static string GetTranscodeString(FileInfo file, string outputPath = null, Config config = null)
