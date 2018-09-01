@@ -23,11 +23,16 @@ namespace Gabriel.Cat.Media
         }
         public enum VideoCodec
         {
+           
             H264,
             /// <summary>
             /// Aun está en desarrollo...
             /// </summary>
             H265,
+            VP9,
+            /// <summary>
+            /// Tarda una eternidad en hacer el trabajo...
+            /// </summary>
             AV1
         }
         public enum AudioCodec
@@ -121,14 +126,22 @@ namespace Gabriel.Cat.Media
 
                     switch (VideoCodec)
                     {
+                        
+                        /*No son FREE*/
                         case FFMPEGHelper.VideoCodec.H264:
                             SetParam(str, "libx264");
                             break;
                         case FFMPEGHelper.VideoCodec.H265:
                             SetParam(str, "libx265");
                             break;
+                            /*Son FREE*/
                         case FFMPEGHelper.VideoCodec.AV1:
-                            SetParam(str, "libaom-av1");
+                            SetParam(str, "libaom-av1", "-strict","experimental");
+                            OutputFormat = Format.mp4;
+                            break;
+                   
+                        case FFMPEGHelper.VideoCodec.VP9:
+                            SetParam(str, "libvpx-vp9");
                             break;
                     }
                 }
@@ -224,7 +237,10 @@ namespace Gabriel.Cat.Media
         {
             string stringSnapShot = GetStringTakeSnapShot(File, time, output, frames);
             string outputPath = GetOutPath(stringSnapShot);
-            System.Diagnostics.Process process = Run(stringSnapShot);
+            System.Diagnostics.Process process;
+            if (System.IO.File.Exists(outputPath))
+               System.IO.File.Delete(outputPath);
+            process= Run(stringSnapShot);
             process.WaitForExit();
             return new SnapShotProcess(process, new FileInfo(outputPath));
         }
@@ -259,6 +275,8 @@ namespace Gabriel.Cat.Media
         {
             string stringTranscode = ToString();
             string outputPath = GetOutPath(stringTranscode);
+            if (System.IO.File.Exists(outputPath))//si no lo hago el ffmpeg no continuará la conversión por falta de verificación...
+                System.IO.File.Delete(outputPath);
             Run(stringTranscode).WaitForExit();
             return new FileInfo(outputPath);
         }
